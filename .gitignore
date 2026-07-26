@@ -1,0 +1,23 @@
+.DS_Store
+
+# Swift build products
+.build/
+.swiftpm/
+
+# Local packaging output
+dist/
+*.dmg
+*.app
+*.icns
+*.iconset/
+
+# Local credentials and environment files
+.env
+.env.*
+auth.json
+.codex/
+
+# Logs and temporary diagnostics
+*.log
+*.tmp
+*.swp
