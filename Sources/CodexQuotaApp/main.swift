@@ -15,6 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if installToApplicationsAndRelaunchIfNeeded() {
+            return
+        }
         terminateOtherRunningCopies()
         NSApp.setActivationPolicy(.accessory)
 
@@ -233,6 +236,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    private func installToApplicationsAndRelaunchIfNeeded() -> Bool {
+        let currentAppURL = Bundle.main.bundleURL.standardizedFileURL
+        guard currentAppURL.path.hasPrefix("/Volumes/") else {
+            return false
+        }
+
+        guard let applicationsURL = FileManager.default.urls(for: .applicationDirectory, in: .localDomainMask).first else {
+            showInstallError("没有找到 Applications 文件夹。")
+            return false
+        }
+
+        let targetURL = applicationsURL.appendingPathComponent("Codex 用量.app", isDirectory: true)
+        if currentAppURL == targetURL.standardizedFileURL {
+            return false
+        }
+
+        terminateOtherRunningCopies()
+
+        do {
+            if FileManager.default.fileExists(atPath: targetURL.path) {
+                try FileManager.default.removeItem(at: targetURL)
+            }
+            try FileManager.default.copyItem(at: currentAppURL, to: targetURL)
+            guard NSWorkspace.shared.open(targetURL) else {
+                showInstallError("已经复制到 Applications，但自动打开失败。")
+                return false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                NSApp.terminate(nil)
+            }
+            return true
+        } catch {
+            showInstallError("自动安装失败：\(error.localizedDescription)")
+            return false
+        }
+    }
+
+    private func showInstallError(_ message: String) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "安装 Codex 用量失败"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "继续打开")
+        alert.runModal()
     }
 }
 
