@@ -15,6 +15,7 @@ ICONSET="$DIST/AppIcon.iconset"
 APP_ICON="$RESOURCES/AppIcon.icns"
 STAGE="$DIST/dmg-stage"
 DMG_BACKGROUND="$STAGE/.background/background.png"
+APPDMG_CONFIG="$DIST/appdmg.json"
 SELECTED_ICON_SOURCE="${SELECTED_ICON_SOURCE:-}"
 
 cd "$ROOT"
@@ -86,7 +87,7 @@ else
   BUILT_EXECUTABLE="$(build_with_swiftc_fallback)"
 fi
 
-rm -rf "$APP" "$DMG" "$RW_DMG" "$ICONSET" "$STAGE"
+rm -rf "$APP" "$DMG" "$RW_DMG" "$ICONSET" "$STAGE" "$APPDMG_CONFIG"
 mkdir -p "$MACOS" "$RESOURCES"
 
 cp "$BUILT_EXECUTABLE" "$MACOS/$EXECUTABLE"
@@ -228,46 +229,24 @@ img.convert("RGB").save(out)
 PY
 SetFile -a C "$STAGE" || true
 
+cat > "$APPDMG_CONFIG" <<JSON
+{
+  "title": "$APP_NAME",
+  "icon": "$APP_ICON",
+  "background": "$DMG_BACKGROUND",
+  "window": {
+    "size": { "width": 760, "height": 460 }
+  },
+  "contents": [
+    { "x": 218, "y": 250, "type": "file", "path": "$STAGE/$APP_NAME.app" },
+    { "x": 542, "y": 250, "type": "link", "path": "/Applications" }
+  ]
+}
+JSON
+
 detach_existing_codex_volumes
-hdiutil create \
-  -volname "$APP_NAME" \
-  -srcfolder "$STAGE" \
-  -ov \
-  -format UDRW \
-  -fs HFS+ \
-  "$RW_DMG"
-
-DEVICE="$(hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen | awk '/Apple_HFS/ {print $1; exit}')"
-VOLUME="$(diskutil info "$DEVICE" | awk -F': *' '/Mount Point/ {print $2; exit}')"
-
-osascript <<APPLESCRIPT
-tell application "Finder"
-  set bgPic to POSIX file "$VOLUME/.background/background.png" as alias
-  tell disk "$APP_NAME"
-    open
-    set current view of container window to icon view
-    set toolbar visible of container window to false
-    set statusbar visible of container window to false
-    set the bounds of container window to {160, 120, 920, 580}
-    set viewOptions to the icon view options of container window
-    set arrangement of viewOptions to not arranged
-    set icon size of viewOptions to 96
-    set background picture of viewOptions to bgPic
-    set position of item "$APP_NAME.app" of container window to {218, 250}
-    set position of item "Applications" of container window to {542, 250}
-    close
-    open
-    update without registering applications
-    delay 1
-    close
-  end tell
-end tell
-APPLESCRIPT
-
-sync
-hdiutil detach "$DEVICE"
-hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG"
-rm -f "$RW_DMG"
+npx --yes appdmg "$APPDMG_CONFIG" "$DMG"
+hdiutil verify "$DMG"
 
 echo "Created $APP"
 echo "Created $DMG"
