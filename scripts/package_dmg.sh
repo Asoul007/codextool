@@ -25,6 +25,21 @@ detach_existing_codex_volumes() {
   done
 }
 
+apply_finder_icon() {
+  local icon_file="$1"
+  local target="$2"
+  local target_icon="$target/Icon"$'\r'
+  local icon_copy="$DIST/FinderCustomIcon.icns"
+  local rez_file="$DIST/FinderCustomIcon.rsrc"
+
+  cp "$icon_file" "$icon_copy"
+  sips -i "$icon_copy" >/dev/null
+  DeRez -only icns "$icon_copy" > "$rez_file"
+  Rez -append "$rez_file" -o "$target_icon"
+  SetFile -a C "$target"
+  SetFile -a V "$target_icon"
+}
+
 build_with_swiftpm() {
   swift build -c release
   echo ".build/release/$EXECUTABLE"
@@ -164,13 +179,14 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
+printf 'APPL????' > "$CONTENTS/PkgInfo"
 chmod +x "$MACOS/$EXECUTABLE"
 touch "$APP"
 
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/$APP_NAME.app"
 cp "$APP_ICON" "$STAGE/.VolumeIcon.icns"
-SetFile -a C "$STAGE/$APP_NAME.app" || true
+apply_finder_icon "$APP_ICON" "$STAGE/$APP_NAME.app"
 ln -s /Applications "$STAGE/Applications"
 mkdir -p "$(dirname "$DMG_BACKGROUND")"
 python3 - "$DMG_BACKGROUND" <<'PY'
