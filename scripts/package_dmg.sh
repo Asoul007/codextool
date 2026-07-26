@@ -100,6 +100,7 @@ else:
         d = ImageDraw.Draw(layer)
         d.ellipse((512-radius, 512-radius, 512+radius, 512+radius), outline=(37, 231, 255, alpha), width=16)
         base = Image.alpha_composite(base, layer.filter(ImageFilter.GaussianBlur(4)))
+    draw = ImageDraw.Draw(base)
     draw.rounded_rectangle((170, 170, 854, 854), radius=188, fill=(3, 10, 22, 235), outline=(37, 231, 255, 190), width=8)
     draw.arc((250, 250, 774, 774), -86, 190, fill=(37, 231, 255, 255), width=52)
     draw.arc((316, 316, 708, 708), -86, 88, fill=(168, 85, 247, 255), width=44)
@@ -145,6 +146,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <string>$APP_NAME</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
+  <key>CFBundleIconName</key>
+  <string>AppIcon</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -162,10 +165,12 @@ cat > "$CONTENTS/Info.plist" <<PLIST
 PLIST
 
 chmod +x "$MACOS/$EXECUTABLE"
+touch "$APP"
 
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/$APP_NAME.app"
 cp "$APP_ICON" "$STAGE/.VolumeIcon.icns"
+SetFile -a C "$STAGE/$APP_NAME.app" || true
 ln -s /Applications "$STAGE/Applications"
 mkdir -p "$(dirname "$DMG_BACKGROUND")"
 python3 - "$DMG_BACKGROUND" <<'PY'
